@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebAssembly Obfuscation Demo (Standalone)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        input, button {
+            padding: 10px;
+            margin: 5px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .result-box {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+        }
+        .test-results {
+            margin-top: 20px;
+        }
+        .test-item {
+            padding: 10px;
+            margin: 5px 0;
+            background-color: #f9f9f9;
+            border-left: 4px solid #4CAF50;
+        }
+        .test-item.error {
+            border-left-color: #f44336;
+            background-color: #ffebee;
+        }
+        h2 {
+            color: #333;
+        }
+        code {
+            background-color: #e8e8e8;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        .info {
+            background-color: #e7f3fe;
+            border-left: 4px solid #2196F3;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebAssembly Obfuscation Demo</h1>
+    
+    <div class="info">
+        <strong>✅ 独立版本</strong> - 可直接在浏览器打开，无需HTTP服务器！
+    </div>
+    
+    <div>
+        <label>Number A: <input type="number" id="numA" value="123"></label><br>
+        <label>Number B: <input type="number" id="numB" value="456"></label><br>
+        <button id="testAll">Test All Methods</button>
+        <button id="compare">Compare Performance</button>
+    </div>
+    
+    <div id="status" class="result-box">Loading WASM module...</div>
+    
+    <div class="test-results">
+        <h2>Test Results</h2>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        let wasmModule = null;
+
+        async function loadWasm() {
+            try {
+                // WASM模块内联base64编码（可直接打开HTML）
+                const wasmBase64 = 'AGFzbQEAAAABBwFgAn9/AX8DBgUAAAAAAAUDAQAAB3QHA2FkZAAAEWFkZF9vYmZ1c2NhdGVkX3YxAAERYWRkX29iZnVzY2F0ZWRfdjIAAhFhZGRfb2JmdXNjYXRlZF92MwADEWFkZF9vYmZ1c2NhdGVkX3Y0AAQRYWRkX29iZnVzY2F0ZWRfdjUAAAZtZW1vcnkCAAqQAQUHACAAIAFqCx0BAX8DQCACQQNIBEAgAkEBaiECDAELCyAAIAFqCyEBAX8DQCABBEAgACABcSAAIAFzIQBBAXQhAQwBCwsgAAs1AQJ/A0AgAgR/IAJBAUYEf0ECIQIgASADagUgA0EAIAJBAkYbDwsFQQEhAiAACyEDDAALAAsQACAAQQF0IAFBAXRqQQJtCwAkEHNvdXJjZU1hcHBpbmdVUkwSLi9yZWxlYXNlLndhc20ubWFw';
+                
+                const wasmBinary = Uint8Array.from(atob(wasmBase64), c => c.charCodeAt(0));
+                const module = await WebAssembly.compile(wasmBinary);
+                const instance = await WebAssembly.instantiate(module);
+                wasmModule = instance.exports;
+                
+                document.getElementById('status').innerHTML = 
+                    '<span style="color: green;">✓ WASM module loaded successfully (Inline Base64)</span>';
+            } catch (error) {
+                document.getElementById('status').innerHTML = 
+                    '<span style="color: red;">✗ Error: ' + error.message + '</span>';
+            }
+        }
+
+        function testAllMethods() {
+            if (!wasmModule) {
+                alert('WASM module not loaded!');
+                return;
+            }
+
+            const a = parseInt(document.getElementById('numA').value) || 0;
+            const b = parseInt(document.getElementById('numB').value) || 0;
+            const expected = a + b;
+
+            const methods = [
+                { name: 'add', label: 'Original (No Obfuscation)', difficulty: '⭐' },
+                { name: 'add_obfuscated_v1', label: 'Dead Code Insertion', difficulty: '⭐⭐⭐' },
+                { name: 'add_obfuscated_v2', label: 'Bitwise Operations', difficulty: '⭐⭐⭐⭐' },
+                { name: 'add_obfuscated_v3', label: 'Control Flow Flattening', difficulty: '⭐⭐⭐⭐⭐' },
+                { name: 'add_obfuscated_v4', label: 'Mathematical Obfuscation', difficulty: '⭐⭐⭐' },
+                { name: 'add_obfuscated_v5', label: 'Inline XOR Obfuscation', difficulty: '⭐⭐⭐' }
+            ];
+
+            let html = '';
+            methods.forEach(method => {
+                try {
+                    const result = wasmModule[method.name](a, b);
+                    const isCorrect = result === expected;
+                    html += `
+                        <div class="test-item ${isCorrect ? '' : 'error'}">
+                            <strong>${method.label}</strong> ${method.difficulty}<br>
+                            <code>${method.name}(${a}, ${b})</code> = <strong>${result}</strong>
+                            ${isCorrect ? '✓' : '✗ (Expected: ' + expected + ')'}
+                        </div>
+                    `;
+                } catch (e) {
+                    html += `
+                        <div class="test-item error">
+                            <strong>${method.label}</strong> ${method.difficulty}<br>
+                            <code>${method.name}</code> - Error: ${e.message}
+                        </div>
+                    `;
+                }
+            });
+
+            document.getElementById('results').innerHTML = html;
+        }
+
+        function comparePerformance() {
+            if (!wasmModule) {
+                alert('WASM module not loaded!');
+                return;
+            }
+
+            const a = parseInt(document.getElementById('numA').value) || 0;
+            const b = parseInt(document.getElementById('numB').value) || 0;
+            const iterations = 1000000;
+
+            const methods = [
+                { name: 'add', label: 'Original' },
+                { name: 'add_obfuscated_v1', label: 'Dead Code' },
+                { name: 'add_obfuscated_v2', label: 'Bitwise' },
+                { name: 'add_obfuscated_v3', label: 'Control Flow' },
+                { name: 'add_obfuscated_v4', label: 'Mathematical' },
+                { name: 'add_obfuscated_v5', label: 'Inline XOR' }
+            ];
+
+            let html = '<h3>Performance Comparison (1,000,000 iterations)</h3>';
+
+            methods.forEach(method => {
+                const start = performance.now();
+                for (let i = 0; i < iterations; i++) {
+                    wasmModule[method.name](a, b);
+                }
+                const elapsed = performance.now() - start;
+                html += `
+                    <div class="test-item">
+                        <strong>${method.label}</strong>: ${elapsed.toFixed(2)}ms
+                    </div>
+                `;
+            });
+
+            document.getElementById('results').innerHTML = html;
+        }
+
+        document.getElementById('testAll').addEventListener('click', testAllMethods);
+        document.getElementById('compare').addEventListener('click', comparePerformance);
+
+        loadWasm();
+    </script>
+</body>
+</html>
